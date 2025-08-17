@@ -183,3 +183,7 @@ __init__.py
 
 # Ignore SQL file
 sql_app.db
+
+# ruff
+.ruff_cache/
+ruff.toml
