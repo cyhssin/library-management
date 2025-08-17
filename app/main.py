@@ -3,9 +3,10 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db
-from .schemas import user as user_schemas
-from .crud import user as user_crud
+from app.database import Base, engine, get_db
+from app.schemas import user as user_schemas
+from app.crud import user as user_crud
+from app.auth.jwt import create_access_token
 
 app: FastAPI = FastAPI()
 
@@ -27,13 +28,16 @@ def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="User creation failed")
     return new_user
 
-@app.post("/login", response_model=user_schemas.UserOut, tags=["user"])
+@app.post("/login", tags=["user"])
 def login_user(user: user_schemas.UserLogin, db: Session = Depends(get_db)):
-    """ Authenticate user and return user info if credentials are valid """
+    """ Authenticate user and return JWT token if credentials are valid """
     db_user = user_crud.authenticate_user(db, user.username, user.password)
-    if not db_user:
+    if not db_user or isinstance(db_user, HTTPException):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return db_user
+    """ Generate JWT token """
+    token_data = {"sub": db_user.username}
+    access_token = create_access_token(token_data)
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/logout", tags=["user"])
 def logout():
