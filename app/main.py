@@ -2,11 +2,16 @@ import os
 
 from dotenv import load_dotenv
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status, Security
 from fastapi.responses import JSONResponse
+
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 
 from sqlalchemy.orm import Session
 from starlette_authlib.middleware import AuthlibMiddleware as SessionMiddleware
+
+
 
 from fastapi_sso.sso.google import GoogleSSO
 
@@ -33,6 +38,16 @@ sso = GoogleSSO(
     redirect_uri="http://127.0.0.1:8000/auth/callback",
     allow_insecure_http=True,
 )
+
+
+# HTTP Basic authentication dependency for profile
+basic_auth = HTTPBasic()
+
+def get_current_user_basic(credentials: HTTPBasicCredentials = Depends(basic_auth), db: Session = Depends(get_db)):
+    user = user_crud.get_user_by_username(db, credentials.username)
+    if user is None or not user_crud.pwd_context.verify(credentials.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    return user
 
 @app.post("/register", response_model=user_schemas.UserOut, status_code=status.HTTP_201_CREATED, tags=["user"])
 def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
@@ -89,3 +104,9 @@ def logout():
     response = JSONResponse(content={"msg": "Logout successful"})
     response.delete_cookie(key="session")
     return response
+
+# User profile endpoint (HTTP Basic Auth)
+@app.get("/profile", response_model=user_schemas.UserOut, tags=["user"])
+def get_profile(current_user=Depends(get_current_user_basic)):
+    """Get the current user's profile information using username and password authentication."""
+    return current_user
