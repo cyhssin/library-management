@@ -2,16 +2,12 @@ import os
 
 from dotenv import load_dotenv
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import secrets
 
 from sqlalchemy.orm import Session
 from starlette_authlib.middleware import AuthlibMiddleware as SessionMiddleware
-
-
 
 from fastapi_sso.sso.google import GoogleSSO
 
@@ -19,6 +15,7 @@ from app.auth.jwt import create_access_token
 from app.crud import user as user_crud
 from app.database import Base, engine, get_db
 from app.schemas import user as user_schemas
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 
 load_dotenv()
 
@@ -39,6 +36,18 @@ sso = GoogleSSO(
     allow_insecure_http=True,
 )
 
+# Email Configuration
+conf = ConnectionConfig(
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM=os.getenv("MAIL_FROM"),
+    MAIL_PORT=587,
+    MAIL_SERVER="smtp.gmail.com",
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True,
+)
 
 # HTTP Basic authentication dependency for profile
 basic_auth = HTTPBasic()
@@ -50,8 +59,8 @@ def get_current_user_basic(credentials: HTTPBasicCredentials = Depends(basic_aut
     return user
 
 @app.post("/register", response_model=user_schemas.UserOut, status_code=status.HTTP_201_CREATED, tags=["user"])
-def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
-    """ Register a new user if username and email are not already taken """
+async def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
+    """ Register a new user if username and email are not already taken, and send verification email """
     db_user = user_crud.get_user_by_username(db, user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -61,7 +70,27 @@ def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
     new_user = user_crud.create_user(db, user)
     if not new_user:
         raise HTTPException(status_code=400, detail="User creation failed")
+    # Send verification email
+    verification_link = f"http://127.0.0.1:8000/verify-email?token={new_user.verification_token}"
+    message = MessageSchema(
+        subject="Verify your email",
+        recipients=[new_user.email],
+        body=f"Please verify your email by clicking the following link: {verification_link}",
+        subtype="plain",
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
     return new_user
+# Email verification endpoint
+@app.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    user = db.query(user_crud.user_models.User).filter(user_crud.user_models.User.verification_token == token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    user.is_email_verified = True
+    user.verification_token = None
+    db.commit()
+    return {"message": "Email verified successfully"}
 
 @app.post("/login", tags=["user"])
 def login_user(user: user_schemas.UserLogin, db: Session = Depends(get_db)):

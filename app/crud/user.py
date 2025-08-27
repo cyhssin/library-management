@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
@@ -19,12 +21,14 @@ def get_user_by_email(db: Session, email: str):
     return db.query(user_models.User).filter(user_models.User.email == email).first()
 
 def create_user(db: Session, user: user_schemas.UserCreate):
-    """ Create a new user in the database with a hashed password """
+    """ Create a new user in the database with a hashed password and verification token """
     hashed_password = pwd_context.hash(user.password)
+    verification_token = secrets.token_urlsafe(32)
     db_user = user_models.User(
         username=user.username,
         email=user.email,
         hashed_password=hashed_password,
+        verification_token=verification_token,
     )
     db.add(db_user)
     try:

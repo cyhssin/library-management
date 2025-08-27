@@ -11,3 +11,4 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_email_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True)
