@@ -16,6 +16,8 @@ from app.crud import user as user_crud
 from app.database import Base, engine, get_db
 from app.schemas import user as user_schemas
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from app.schemas.book import BookCreate, BookUpdate, BookOut, BookAssignmentCreate, BookAssignmentOut
+from app.crud import book as book_crud
 
 load_dotenv()
 
@@ -81,6 +83,7 @@ async def register_user(user: user_schemas.UserCreate, db: Session = Depends(get
     fm = FastMail(conf)
     await fm.send_message(message)
     return new_user
+
 # Email verification endpoint
 @app.get("/verify-email")
 def verify_email(token: str, db: Session = Depends(get_db)):
@@ -139,3 +142,45 @@ def logout():
 def get_profile(current_user=Depends(get_current_user_basic)):
     """Get the current user's profile information using username and password authentication."""
     return current_user
+
+@app.post("/books/", response_model=BookOut, tags=["book"])
+def create_book(book: BookCreate, db: Session = Depends(get_db)):
+    """ Create a new book """
+    return book_crud.create_book(db, book)
+
+@app.get("/books/{book_id}", response_model=BookOut, tags=["book"])
+def read_book(book_id: int, db: Session = Depends(get_db)):
+    """ Get a book by ID """
+    db_book = book_crud.get_book(db, book_id)
+    if not db_book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return db_book
+
+@app.get("/books/", response_model=list[BookOut], tags=["book"])
+def read_books(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """ Get a list of books with pagination """
+    return book_crud.get_books(db, skip=skip, limit=limit)
+
+@app.patch("/books/{book_id}", response_model=BookOut, tags=["book"])
+def update_book(book_id: int, book: BookUpdate, db: Session = Depends(get_db)):
+    """ Update a book by ID """
+    db_book = book_crud.update_book(db, book_id, book)
+    if not db_book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return db_book
+
+@app.post("/books/{book_id}/assign", response_model=BookAssignmentOut, tags=["book"])
+def assign_book(book_id: int, assignment: BookAssignmentCreate, db: Session = Depends(get_db)):
+    """ Assign a book to a user """
+    db_assignment = book_crud.assign_book(db, book_id, assignment)
+    if not db_assignment:
+        raise HTTPException(status_code=400, detail="Not enough books available or book not found")
+    return db_assignment
+
+@app.post("/books/assignment/{assignment_id}/return", response_model=BookAssignmentOut, tags=["book"])
+def return_book(assignment_id: int, db: Session = Depends(get_db)):
+    """ Return a book assignment """
+    db_assignment = book_crud.return_book(db, assignment_id)
+    if not db_assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found or already returned")
+    return db_assignment
