@@ -34,6 +34,7 @@ class BookAssignment(Base):
     assigned_at = Column(DateTime, default=datetime.utcnow)
     returned_at = Column(DateTime, nullable=True)
     quantity = Column(Integer, nullable=False, default=1)
+    due_date = Column(DateTime, nullable=True)
 
     book = relationship("Book", back_populates="assignments")
     user = relationship("User")

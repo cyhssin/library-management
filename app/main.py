@@ -11,13 +11,17 @@ from starlette_authlib.middleware import AuthlibMiddleware as SessionMiddleware
 
 from fastapi_sso.sso.google import GoogleSSO
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from app.auth.jwt import create_access_token
 from app.crud import user as user_crud
 from app.database import Base, engine, get_db
 from app.schemas import user as user_schemas
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from fastapi_mail import FastMail, MessageSchema
 from app.schemas.book import BookCreate, BookUpdate, BookOut, BookAssignmentCreate, BookAssignmentOut
 from app.crud import book as book_crud
+from app.config.email import conf
+from app.utils.reminder import send_due_soon_reminders
 
 load_dotenv()
 
@@ -36,19 +40,6 @@ sso = GoogleSSO(
     client_secret=GOOGLE_CLIENT_SECRET,
     redirect_uri="http://127.0.0.1:8000/auth/callback",
     allow_insecure_http=True,
-)
-
-# Email Configuration
-conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM=os.getenv("MAIL_FROM"),
-    MAIL_PORT=587,
-    MAIL_SERVER="smtp.gmail.com",
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
 )
 
 # HTTP Basic authentication dependency for profile
@@ -184,3 +175,10 @@ def return_book(assignment_id: int, db: Session = Depends(get_db)):
     if not db_assignment:
         raise HTTPException(status_code=404, detail="Assignment not found or already returned")
     return db_assignment
+
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(send_due_soon_reminders, "interval", days=1, args=[next(get_db())])
+    scheduler.start()
+
+start_scheduler()

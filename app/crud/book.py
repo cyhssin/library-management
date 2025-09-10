@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.models.book import Book, BookAssignment
 from app.schemas.book import BookCreate, BookUpdate, BookAssignmentCreate
@@ -34,6 +34,7 @@ def update_book(db: Session, book_id: int, book: BookUpdate):
     db.commit()
     db.refresh(db_book)
     return db_book
+
 def assign_book(db: Session, book_id: int, assignment: BookAssignmentCreate):
     db_book = get_book(db, book_id)
     if not db_book or db_book.available_count < assignment.quantity:
@@ -43,6 +44,7 @@ def assign_book(db: Session, book_id: int, assignment: BookAssignmentCreate):
         user_id=assignment.user_id,
         assignment_type=assignment.assignment_type,
         quantity=assignment.quantity,
+        due_date=datetime.now() + timedelta(days=14),
     )
     db_book.available_count -= assignment.quantity
     db.add(db_assignment)

@@ -41,11 +41,11 @@ class BookAssignmentOut(BookAssignmentBase):
 
     class Config:
         from_attributes = True
+
 class BookOut(BookBase):
     id: int
     available_count: int
     created_at: datetime
-    assignments: list[BookAssignmentOut] = []
 
     class Config:
         from_attributes = True
