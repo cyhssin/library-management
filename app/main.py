@@ -182,3 +182,17 @@ def start_scheduler():
     scheduler.start()
 
 start_scheduler()
+
+@app.post("/password-reset/request")
+async def password_reset_request(data: user_schemas.PasswordResetRequest, db: Session = Depends(get_db)):
+    success = await user_crud.request_password_reset(db, data.email)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "Password reset code sent to your email."}
+
+@app.post("/password-reset/confirm")
+def password_reset_confirm(data: user_schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
+    success = user_crud.reset_password(db, data.email, data.code, data.new_password)
+    if not success:
+        raise HTTPException(status_code=400, detail="Invalid code or code expired")
+    return {"message": "Password has been reset successfully."}

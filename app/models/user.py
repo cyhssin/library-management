@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 
 from app.database import Base
 
@@ -12,3 +12,5 @@ class User(Base):
     is_email_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True)
+    reset_code = Column(String, nullable=True)
+    reset_code_expiry = Column(DateTime, nullable=True)

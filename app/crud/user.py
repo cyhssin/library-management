@@ -1,4 +1,5 @@
 import secrets
+import random
 
 from fastapi import HTTPException
 
@@ -7,8 +8,13 @@ from sqlalchemy.exc import IntegrityError
 
 from passlib.context import CryptContext
 
+from datetime import datetime, timedelta
+
+from fastapi_mail import FastMail, MessageSchema
+
 from app.schemas import user as user_schemas
 from app.models import user as user_models
+from app.config.email import conf
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,3 +56,32 @@ def authenticate_user(db: Session, username: str, password: str):
     if not user.is_email_verified:
         return HTTPException(status_code=403, detail="Email not verified")
     return user
+
+async def request_password_reset(db: Session, email: str):
+    user = db.query(user_models.User).filter(user_models.User.email == email).first()
+    if not user:
+        return False
+    code = str(random.randint(10000, 99999))
+    user.reset_code = code
+    user.reset_code_expiry = datetime.now() + timedelta(minutes=15)
+    db.commit()
+    # Send email
+    message = MessageSchema(
+        subject="Your Password Reset Code",
+        recipients=[user.email],
+        body=f"Your password reset code is: {code}",
+        subtype="plain",
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
+    return True
+
+def reset_password(db: Session, email: str, code: str, new_password: str):
+    user = db.query(user_models.User).filter(user_models.User.email == email).first()
+    if not user or user.reset_code != code or user.reset_code_expiry < datetime.now():
+        return False
+    user.hashed_password = pwd_context.hash(new_password)
+    user.reset_code = None
+    user.reset_code_expiry = None
+    db.commit()
+    return True
