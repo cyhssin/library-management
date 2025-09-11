@@ -196,3 +196,16 @@ def password_reset_confirm(data: user_schemas.PasswordResetConfirm, db: Session 
     if not success:
         raise HTTPException(status_code=400, detail="Invalid code or code expired")
     return {"message": "Password has been reset successfully."}
+
+@app.delete("/user/{user_id}", status_code=204, tags=["user"])
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    success = user_crud.delete_user(db, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+
+@app.patch("/users/{user_id}/deactivate", response_model=user_schemas.UserOut, tags=["user"])
+def deactivate_user(user_id: int, db: Session = Depends(get_db)):
+    user = user_crud.deactivate_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user

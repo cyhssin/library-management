@@ -85,3 +85,20 @@ def reset_password(db: Session, email: str, code: str, new_password: str):
     user.reset_code_expiry = None
     db.commit()
     return True
+
+def delete_user(db: Session, user_id: int):
+    user = db.query(user_models.User).filter(user_models.User.id == user_id).first()
+    if not user:
+        return "There is no user with such an id"
+    db.delete(user)
+    db.commit()
+    return True
+
+def deactivate_user(db: Session, user_id: int):
+    user = db.query(user_models.User).filter(user_models.User.id == user_id).first()
+    if not user:
+        return "There is no user with such an id"
+    user.is_active = False
+    db.commit()
+    db.refresh(user)
+    return user
