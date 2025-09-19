@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -10,6 +10,23 @@ class AssignmentType(str, enum.Enum):
     loan = "loan"
     salon = "salon"
     sale = "sale"
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+
+class Tag(Base):
+    __tablename__ = "tags"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+
+book_tag_table = Table(
+    "book_tag_association",
+    Base.metadata,
+    Column("book_id", Integer, ForeignKey("books.id")),
+    Column("tag_id", Integer, ForeignKey("tags.id")),
+)
 
 class Book(Base):
     __tablename__ = "books"
@@ -24,6 +41,9 @@ class Book(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     assignments = relationship("BookAssignment", back_populates="book")
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    category = relationship("Category")
+    tags = relationship("Tag", secondary=book_tag_table, backref="books")
 
 class BookAssignment(Base):
     __tablename__ = "book_assignments"

@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
-from app.models.book import Book, BookAssignment
+from app.models.book import Book, BookAssignment, Category, Tag
 from app.schemas.book import BookCreate, BookUpdate, BookAssignmentCreate
 
 def create_book(db: Session, book: BookCreate):
+    db_category = db.query(Category).filter(Category.id == book.category_id).first()
+    db_tags = db.query(Tag).filter(Tag.id.in_(book.tags)).all()
     db_book = Book(
         title = book.title,
         author = book.author,
@@ -13,6 +15,8 @@ def create_book(db: Session, book: BookCreate):
         assignment_type = book.assignment_type,
         total_count = book.total_count,
         available_count = book.total_count,
+        category=db_category,
+        tags=db_tags,
     )
     db.add(db_book)
     db.commit()
@@ -61,3 +65,17 @@ def return_book(db: Session, assignment_id: int):
     db.commit()
     db.refresh(db_assignment)
     return db_assignment
+
+def create_category(db: Session, name: str):
+    category = Category(name=name)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+def create_tag(db: Session, name: str):
+    tag = Tag(name=name)
+    db.add(tag)
+    db.commit()
+    db.refresh(tag)
+    return tag
