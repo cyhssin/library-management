@@ -11,6 +11,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_email_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
+    role = Column(String, default="member")
     verification_token = Column(String, nullable=True)
     reset_code = Column(String, nullable=True)
     reset_code_expiry = Column(DateTime, nullable=True)

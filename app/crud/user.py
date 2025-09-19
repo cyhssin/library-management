@@ -1,7 +1,7 @@
 import secrets
 import random
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -35,6 +35,7 @@ def create_user(db: Session, user: user_schemas.UserCreate):
         email=user.email,
         hashed_password=hashed_password,
         verification_token=verification_token,
+        role="member",
     )
     db.add(db_user)
     try:

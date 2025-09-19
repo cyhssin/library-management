@@ -51,6 +51,11 @@ def get_current_user_basic(credentials: HTTPBasicCredentials = Depends(basic_aut
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     return user
 
+def require_admin_basic(current_user=Depends(get_current_user_basic)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
 @app.post("/register", response_model=user_schemas.UserOut, status_code=status.HTTP_201_CREATED, tags=["user"])
 async def register_user(user: user_schemas.UserCreate, db: Session = Depends(get_db)):
     """ Register a new user if username and email are not already taken, and send verification email """
@@ -208,4 +213,22 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db)):
     user = user_crud.deactivate_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.patch("/users/{username}/role", response_model=user_schemas.UserOut)
+def change_user_role(
+    username: str,
+    new_role: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin_basic),
+):
+    """ Change user role """
+    user = user_crud.get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if new_role not in ["admin", "librarian", "member"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    user.role = new_role
+    db.commit()
+    db.refresh(user)
     return user

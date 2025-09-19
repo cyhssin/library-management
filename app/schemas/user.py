@@ -10,6 +10,8 @@ class UserCreate(UserBase):
 class UserOut(UserBase):
     id: int
     is_active: bool
+    is_admin: bool
+    role: str
     class Config:
         orm_mode = True
 
