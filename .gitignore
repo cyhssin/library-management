@@ -187,3 +187,4 @@ sql_app.db
 # ruff
 .ruff_cache/
 ruff.toml
+version
